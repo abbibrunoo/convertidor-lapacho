@@ -13,8 +13,6 @@ const listadoBuscarBtn = document.getElementById("listado-buscar-btn");
 const listadoResultado = document.getElementById("listado-resultado");
 const listadoFilas = Array.from(document.querySelectorAll(".table-wrap tbody tr"));
 const listadoCards = Array.from(document.querySelectorAll(".mobile-cards .product-card"));
-const menuToggle = document.getElementById("menu-toggle");
-const menuDropdown = document.getElementById("menu-dropdown");
 
 let productoSeleccionado = null;
 
@@ -38,6 +36,36 @@ function parsearCantidad(texto) {
     const limpio = String(texto || "").trim();
     if (!limpio) return NaN;
     return Number(limpio.replace(/\./g, "").replace(",", "."));
+}
+
+function buscarCoincidencias(termino) {
+    const normalizado = normalizarTexto(termino);
+    if (!normalizado) return [];
+    return productos.filter((item) => normalizarTexto(item.etiqueta).includes(normalizado));
+}
+
+function intentarSeleccionAutomatica() {
+    const termino = productoBusqueda.value;
+    const coincidencias = buscarCoincidencias(termino);
+    const terminoNormalizado = normalizarTexto(termino);
+
+    if (!terminoNormalizado) {
+        productoSeleccionado = null;
+        precioInput.value = "$ 0,00";
+        return false;
+    }
+
+    const exacta = coincidencias.find((item) => normalizarTexto(item.etiqueta) === terminoNormalizado);
+    const candidata = exacta || (coincidencias.length === 1 ? coincidencias[0] : null);
+
+    if (candidata) {
+        seleccionarProducto(candidata);
+        return true;
+    }
+
+    productoSeleccionado = null;
+    precioInput.value = "$ 0,00";
+    return false;
 }
 
 function renderSugerencias(items) {
@@ -86,6 +114,10 @@ function buscarProductos() {
 
 function calcularTotal() {
     if (!productoSeleccionado) {
+        intentarSeleccionAutomatica();
+    }
+
+    if (!productoSeleccionado) {
         totalResultado.textContent = "Seleccioná un producto";
         return;
     }
@@ -126,18 +158,9 @@ function filtrarListado() {
     }
 }
 
-function toggleMenu(forceState) {
-    if (!menuToggle || !menuDropdown) return;
-
-    const shouldOpen = typeof forceState === "boolean" ? forceState : menuDropdown.hidden;
-    menuDropdown.hidden = !shouldOpen;
-    menuToggle.setAttribute("aria-expanded", String(shouldOpen));
-}
-
 productoBusqueda.addEventListener("focus", buscarProductos);
 productoBusqueda.addEventListener("input", () => {
-    productoSeleccionado = null;
-    precioInput.value = "$ 0,00";
+    intentarSeleccionAutomatica();
     buscarProductos();
 });
 
@@ -167,19 +190,8 @@ listadoBtn.addEventListener("click", () => {
     }
 });
 
-if (menuToggle) {
-    menuToggle.addEventListener("click", () => toggleMenu());
-}
-
 document.addEventListener("click", (event) => {
     if (!sugerencias.contains(event.target) && event.target !== productoBusqueda) {
         sugerencias.hidden = true;
-    }
-
-    if (menuDropdown && menuToggle) {
-        const clickDentroMenu = menuDropdown.contains(event.target) || menuToggle.contains(event.target);
-        if (!clickDentroMenu) {
-            toggleMenu(false);
-        }
     }
 });

@@ -14,6 +14,8 @@ SECRET_KEY = os.getenv("SECRET_KEY", "convertidor-lapacho-seguro")
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
+app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
+app.config["TEMPLATES_AUTO_RELOAD"] = True
 
 
 def limpiar_precio(texto: str) -> float | None:
@@ -198,6 +200,14 @@ def obtener_todo() -> pd.DataFrame:
 
 def usuario_autenticado() -> bool:
     return session.get("authenticated") is True
+
+
+@app.after_request
+def agregar_headers_no_cache(response):
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 
 @app.route("/login", methods=["GET", "POST"])

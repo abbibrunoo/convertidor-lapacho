@@ -142,6 +142,7 @@ body {
 }
 
 .menu-toggle {
+    list-style: none;
     min-width: 96px;
     padding: 10px 14px;
     border: 1px solid rgba(255, 255, 255, 0.14);
@@ -150,6 +151,14 @@ body {
     color: var(--text);
     cursor: pointer;
     font-weight: 600;
+}
+
+.menu-toggle::-webkit-details-marker {
+    display: none;
+}
+
+.topbar-menu[open] .menu-toggle {
+    background: rgba(255, 255, 255, 0.08);
 }
 
 .menu-dropdown {

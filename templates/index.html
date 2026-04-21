@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Convertidor Lapacho</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css', v='20260421a') }}">
 </head>
 <body>
     <div class="page-shell">
@@ -14,24 +14,21 @@
                 <span>Convertidor Lapacho</span>
             </div>
 
-            <div class="topbar-menu">
-                <button id="menu-toggle" class="menu-toggle" type="button" aria-expanded="false">
-                    Menú
-                </button>
-
-                <div id="menu-dropdown" class="menu-dropdown" hidden>
+            <details class="topbar-menu">
+                <summary class="menu-toggle">Menú</summary>
+                <div class="menu-dropdown">
                     <form method="post" action="{{ url_for('logout') }}">
                         <button class="menu-dropdown__item" type="submit">Cerrar sesión</button>
                     </form>
                 </div>
-            </div>
+            </details>
         </nav>
 
         <header class="hero">
             <div class="hero-badge">Sistema de consulta</div>
-            <img class="hero-logo" src="{{ url_for('static', filename='lapacho.png') }}" alt="Logo Lapacho">
+            <img class="hero-logo" src="{{ url_for('static', filename='lapacho.png', v='20260421a') }}" alt="Logo Lapacho">
             <h1>Convertidor Lapacho</h1>
-            <p>Calculá el total a partir de la cantidad secuestrada y los valores cargados en el Excel.</p>
+            <p>Calculá el total a partir de la cantidad secuestrada y los valores cargados.</p>
         </header>
 
         <main class="layout">
@@ -124,9 +121,6 @@
         </main>
     </div>
 
-    <script>
-        window.PRODUCTOS = {{ productos|tojson }};
-    </script>
-    <script src="{{ url_for('static', filename='app.js') }}"></script>
+    <script src="{{ url_for('static', filename='app.js', v='20260421b') }}"></script>
 </body>
 </html>
