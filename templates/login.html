@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ingreso | Convertidor Lapacho</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="login-shell">
+        <section class="login-card">
+            <img class="login-logo" src="{{ url_for('static', filename='lapacho.png') }}" alt="Logo Lapacho">
+            <div class="hero-badge">Acceso protegido</div>
+            <h1>Convertidor Lapacho</h1>
+            <p>Ingresá con el usuario y la contraseña compartidos para acceder al sistema.</p>
+
+            <form method="post" class="login-form">
+                <label for="username">Usuario</label>
+                <input id="username" name="username" type="text" autocomplete="username" required>
+
+                <label for="password">Contraseña</label>
+                <input id="password" name="password" type="password" autocomplete="current-password" required>
+
+                {% if error %}
+                <div class="login-error">{{ error }}</div>
+                {% endif %}
+
+                <button class="primary-btn login-btn" type="submit">Ingresar</button>
+            </form>
+        </section>
+    </div>
+</body>
+</html>
