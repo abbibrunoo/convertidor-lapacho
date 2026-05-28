@@ -1,5 +1,6 @@
 import os
 import re
+import unicodedata
 from pathlib import Path
 
 import pandas as pd
@@ -55,17 +56,8 @@ def limpiar_texto(texto: str) -> str:
 
 def normalizar_texto_columna(texto: str) -> str:
     texto = str(texto).strip().upper()
-    reemplazos = str.maketrans(
-        {
-            "Á": "A",
-            "É": "E",
-            "Í": "I",
-            "Ó": "O",
-            "Ú": "U",
-            "Ü": "U",
-        }
-    )
-    return texto.translate(reemplazos)
+    texto = unicodedata.normalize("NFKD", texto)
+    return "".join(caracter for caracter in texto if not unicodedata.combining(caracter))
 
 
 def encontrar_columna(columnas: list[str], candidatos: list[str]) -> str | None:
@@ -75,6 +67,17 @@ def encontrar_columna(columnas: list[str], candidatos: list[str]) -> str | None:
         if normalizado in columnas_normalizadas:
             return columnas_normalizadas[normalizado]
     return None
+
+
+def encontrar_columnas(columnas: list[str], candidatos: list[str]) -> list[str]:
+    columnas_normalizadas = {normalizar_texto_columna(col): col for col in columnas}
+    encontradas = []
+    for candidato in candidatos:
+        normalizado = normalizar_texto_columna(candidato)
+        columna = columnas_normalizadas.get(normalizado)
+        if columna and columna not in encontradas:
+            encontradas.append(columna)
+    return encontradas
 
 
 def fila_base(
@@ -116,12 +119,13 @@ def leer_productos_excel(ruta_excel: Path) -> pd.DataFrame:
                 "MATERIAL",
                 "MATERIAL PLASTICO / POLIMERO",
                 "PRODUCTO ELECTRONICO",
+                "PRODUCTO",
                 "GRANO",
                 "CATEGORIA",
                 "CATEGORÍA",
             ],
         )
-        precio_col = encontrar_columna(
+        precio_cols = encontrar_columnas(
             list(df.columns),
             [
                 "PRECIO PROMEDIO ARS",
@@ -144,17 +148,26 @@ def leer_productos_excel(ruta_excel: Path) -> pd.DataFrame:
             ],
         )
 
-        if not producto_col or not precio_col:
+        if not producto_col or not precio_cols:
             continue
 
         for _, fila in df.iterrows():
             nombre = fila.get(producto_col)
-            precio_texto = fila.get(precio_col)
+            precio_texto = None
+            precio_numero = None
+            for precio_col in precio_cols:
+                valor_precio = fila.get(precio_col)
+                if pd.isna(valor_precio):
+                    continue
+                precio_parseado = limpiar_precio(valor_precio)
+                if precio_parseado is not None:
+                    precio_texto = valor_precio
+                    precio_numero = precio_parseado
+                    break
 
-            if pd.isna(nombre) or pd.isna(precio_texto):
+            if pd.isna(nombre) or precio_texto is None:
                 continue
 
-            precio_numero = limpiar_precio(precio_texto)
             if precio_numero is None:
                 continue
 
