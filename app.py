@@ -4,7 +4,7 @@ import unicodedata
 from pathlib import Path
 
 import pandas as pd
-from flask import Flask, redirect, render_template, request, session, url_for
+from flask import Flask, jsonify, redirect, render_template, request, session, url_for
 
 BASE_DIR = Path(__file__).resolve().parent
 EXCEL_PATH = Path(os.getenv("EXCEL_PATH", BASE_DIR / "data" / "excel.xlsx"))
@@ -104,101 +104,110 @@ def leer_productos_excel(ruta_excel: Path) -> pd.DataFrame:
     if not ruta_excel.exists():
         return pd.DataFrame(columns=BASE_COLUMNS)
 
-    xls = pd.ExcelFile(ruta_excel)
     registros: list[dict] = []
 
-    for hoja in xls.sheet_names:
-        df = pd.read_excel(xls, sheet_name=hoja)
-        if df.empty:
-            continue
-
-        producto_col = encontrar_columna(
-            list(df.columns),
-            [
-                "MATERIAL / PRODUCTO",
-                "MATERIAL",
-                "MATERIAL PLASTICO / POLIMERO",
-                "PRODUCTO ELECTRONICO",
-                "PRODUCTO",
-                "GRANO",
-                "CATEGORIA",
-                "CATEGORÍA",
-            ],
-        )
-        precio_cols = encontrar_columnas(
-            list(df.columns),
-            [
-                "PRECIO PROMEDIO ARS",
-                "PRECIO PROMEDIO",
-                "PRECIO ESTIMADO ARS",
-                "PRECIO TONELADA ARS",
-                "PRECIO KG ARS",
-            ],
-        )
-        categoria_col = encontrar_columna(list(df.columns), ["CATEGORIA", "CATEGORÍA", "TIPO", "CLASIFICACIÓN"])
-        unidad_col = encontrar_columna(list(df.columns), ["UNIDAD", "CANTIDAD / UNIDAD", "PRESENTACIÓN"])
-        fuente_col = encontrar_columna(
-            list(df.columns),
-            [
-                "FUENTE",
-                "FUENTE REFERENCIA",
-                "FUENTE VERIFICACION",
-                "REFERENCIA / ACTUALIZACIÓN",
-                "LINK VERIFICACIÓN",
-            ],
-        )
-
-        if not producto_col or not precio_cols:
-            continue
-
-        for _, fila in df.iterrows():
-            nombre = fila.get(producto_col)
-            precio_texto = None
-            precio_numero = None
-            for precio_col in precio_cols:
-                valor_precio = fila.get(precio_col)
-                if pd.isna(valor_precio):
-                    continue
-                precio_parseado = limpiar_precio(valor_precio)
-                if precio_parseado is not None:
-                    precio_texto = valor_precio
-                    precio_numero = precio_parseado
-                    break
-
-            if pd.isna(nombre) or precio_texto is None:
-                continue
-
-            if precio_numero is None:
-                continue
-
-            categoria = hoja
-            if categoria_col and not pd.isna(fila.get(categoria_col)):
-                categoria = str(fila.get(categoria_col)).strip()
-
-            unidad = ""
-            if unidad_col and not pd.isna(fila.get(unidad_col)):
-                unidad = str(fila.get(unidad_col)).strip()
-
-            fuente = f"Excel: {hoja}"
-            if fuente_col and not pd.isna(fila.get(fuente_col)):
-                fuente = str(fila.get(fuente_col)).strip()
-
-            registros.append(
-                fila_base(
-                    nombre=nombre,
-                    precio=precio_numero,
-                    precio_texto=str(precio_texto),
-                    fuente=fuente,
-                    categoria=categoria,
-                    unidad=unidad,
-                    origen=f"Excel - {hoja}",
-                )
-            )
+    with pd.ExcelFile(ruta_excel) as xls:
+        hojas = xls.sheet_names
+        for hoja in hojas:
+            df = pd.read_excel(xls, sheet_name=hoja)
+            registros.extend(leer_filas_hoja_excel(df, hoja))
 
     if not registros:
         return pd.DataFrame(columns=BASE_COLUMNS)
 
     return pd.DataFrame(registros, columns=BASE_COLUMNS)
+
+
+def leer_filas_hoja_excel(df: pd.DataFrame, hoja: str) -> list[dict]:
+    registros: list[dict] = []
+
+    if df.empty:
+        return registros
+
+    producto_col = encontrar_columna(
+        list(df.columns),
+        [
+            "MATERIAL / PRODUCTO",
+            "MATERIAL",
+            "MATERIAL PLASTICO / POLIMERO",
+            "PRODUCTO ELECTRONICO",
+            "PRODUCTO",
+            "GRANO",
+            "CATEGORIA",
+            "CATEGORÍA",
+        ],
+    )
+    precio_cols = encontrar_columnas(
+        list(df.columns),
+        [
+            "PRECIO PROMEDIO ARS",
+            "PRECIO PROMEDIO",
+            "PRECIO ESTIMADO ARS",
+            "PRECIO TONELADA ARS",
+            "PRECIO KG ARS",
+        ],
+    )
+    categoria_col = encontrar_columna(list(df.columns), ["CATEGORIA", "CATEGORÍA", "TIPO", "CLASIFICACIÓN"])
+    unidad_col = encontrar_columna(list(df.columns), ["UNIDAD", "CANTIDAD / UNIDAD", "PRESENTACIÓN"])
+    fuente_col = encontrar_columna(
+        list(df.columns),
+        [
+            "FUENTE",
+            "FUENTE REFERENCIA",
+            "FUENTE VERIFICACION",
+            "REFERENCIA / ACTUALIZACIÓN",
+            "LINK VERIFICACIÓN",
+        ],
+    )
+
+    if not producto_col or not precio_cols:
+        return registros
+
+    for _, fila in df.iterrows():
+        nombre = fila.get(producto_col)
+        precio_texto = None
+        precio_numero = None
+        for precio_col in precio_cols:
+            valor_precio = fila.get(precio_col)
+            if pd.isna(valor_precio):
+                continue
+            precio_parseado = limpiar_precio(valor_precio)
+            if precio_parseado is not None:
+                precio_texto = valor_precio
+                precio_numero = precio_parseado
+                break
+
+        if pd.isna(nombre) or precio_texto is None:
+            continue
+
+        if precio_numero is None:
+            continue
+
+        categoria = hoja
+        if categoria_col and not pd.isna(fila.get(categoria_col)):
+            categoria = str(fila.get(categoria_col)).strip()
+
+        unidad = ""
+        if unidad_col and not pd.isna(fila.get(unidad_col)):
+            unidad = str(fila.get(unidad_col)).strip()
+
+        fuente = f"Excel: {hoja}"
+        if fuente_col and not pd.isna(fila.get(fuente_col)):
+            fuente = str(fila.get(fuente_col)).strip()
+
+        registros.append(
+            fila_base(
+                nombre=nombre,
+                precio=precio_numero,
+                precio_texto=str(precio_texto),
+                fuente=fuente,
+                categoria=categoria,
+                unidad=unidad,
+                origen=f"Excel - {hoja}",
+            )
+        )
+
+    return registros
 
 
 def obtener_todo() -> pd.DataFrame:
@@ -209,6 +218,49 @@ def obtener_todo() -> pd.DataFrame:
     df_excel = df_excel.drop_duplicates(subset=["Producto", "Precio", "Fuente", "Categoria", "Unidad"])
     df_excel = df_excel.sort_values(by=["Categoria", "Producto", "Precio"]).reset_index(drop=True)
     return df_excel
+
+
+def estado_excel() -> dict:
+    if not EXCEL_PATH.exists():
+        return {
+            "excel_path": str(EXCEL_PATH),
+            "excel_actualizado": "",
+            "excel_mtime": 0,
+        }
+
+    modificado = EXCEL_PATH.stat().st_mtime
+    return {
+        "excel_path": str(EXCEL_PATH.relative_to(BASE_DIR)) if EXCEL_PATH.is_relative_to(BASE_DIR) else str(EXCEL_PATH),
+        "excel_actualizado": pd.Timestamp.fromtimestamp(modificado).strftime("%d/%m/%Y %H:%M:%S"),
+        "excel_mtime": modificado,
+    }
+
+
+def productos_para_web() -> list[dict]:
+    df = obtener_todo()
+    productos = []
+
+    for idx, fila in df.iterrows():
+        categoria = fila.get("Categoria", "")
+        producto = fila.get("Producto", "")
+        unidad = fila.get("Unidad", "")
+        etiqueta = " | ".join(parte for parte in (categoria, producto, unidad) if str(parte).strip())
+
+        productos.append(
+            {
+                "id": int(idx),
+                "etiqueta": etiqueta,
+                "categoria": categoria,
+                "producto": producto,
+                "unidad": unidad,
+                "precio": float(fila["Precio"]),
+                "precio_formateado": formatear_moneda(float(fila["Precio"])),
+                "fuente": fila.get("Fuente", ""),
+                "origen": fila.get("Origen", ""),
+            }
+        )
+
+    return productos
 
 
 def usuario_autenticado() -> bool:
@@ -248,39 +300,35 @@ def logout():
     return redirect(url_for("login"))
 
 
+@app.route("/api/productos")
+def api_productos():
+    if not usuario_autenticado():
+        return jsonify({"error": "No autenticado"}), 401
+
+    productos = productos_para_web()
+    return jsonify(
+        {
+            "productos": productos,
+            "total_productos": len(productos),
+            **estado_excel(),
+        }
+    )
+
+
 @app.route("/")
 def index():
     if not usuario_autenticado():
         return redirect(url_for("login"))
 
-    df = obtener_todo()
-    productos = []
-
-    for idx, fila in df.iterrows():
-        categoria = fila.get("Categoria", "")
-        producto = fila.get("Producto", "")
-        unidad = fila.get("Unidad", "")
-        etiqueta = " | ".join(parte for parte in (categoria, producto, unidad) if str(parte).strip())
-
-        productos.append(
-            {
-                "id": int(idx),
-                "etiqueta": etiqueta,
-                "categoria": categoria,
-                "producto": producto,
-                "unidad": unidad,
-                "precio": float(fila["Precio"]),
-                "precio_formateado": formatear_moneda(float(fila["Precio"])),
-                "fuente": fila.get("Fuente", ""),
-                "origen": fila.get("Origen", ""),
-            }
-        )
+    productos = productos_para_web()
+    excel = estado_excel()
 
     return render_template(
         "index.html",
         productos=productos,
         total_productos=len(productos),
-        excel_path=str(EXCEL_PATH.relative_to(BASE_DIR)) if EXCEL_PATH.is_relative_to(BASE_DIR) else str(EXCEL_PATH),
+        excel_path=excel["excel_path"],
+        excel_actualizado=excel["excel_actualizado"],
     )
 
 

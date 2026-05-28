@@ -67,8 +67,13 @@
                 <div class="listado-header">
                     <div>
                         <h2>Listado completo</h2>
-                        <p>{{ total_productos }} productos cargados desde {{ excel_path }}</p>
+                        <p>
+                            <span id="total-productos">{{ total_productos }}</span>
+                            productos cargados desde {{ excel_path }}
+                            <span id="excel-actualizado">{% if excel_actualizado %} | Actualizado {{ excel_actualizado }}{% endif %}</span>
+                        </p>
                     </div>
+                    <button id="actualizar-excel-btn" class="secondary-btn listado-refresh-btn" type="button">Actualizar Excel</button>
                 </div>
 
                 <div class="listado-search">
@@ -88,7 +93,7 @@
                                 <th>Fuente</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="productos-tabla-body">
                             {% for producto in productos %}
                             <tr data-search="{{ (producto.categoria ~ ' ' ~ producto.producto ~ ' ' ~ producto.unidad ~ ' ' ~ producto.fuente)|lower }}">
                                 <td>{{ producto.categoria }}</td>
@@ -102,7 +107,7 @@
                     </table>
                 </div>
 
-                <div class="mobile-cards">
+                <div id="productos-mobile-cards" class="mobile-cards">
                     {% for producto in productos %}
                     <article class="product-card" data-search="{{ (producto.categoria ~ ' ' ~ producto.producto ~ ' ' ~ producto.unidad ~ ' ' ~ producto.fuente)|lower }}">
                         <div class="product-card__top">
